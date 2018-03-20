@@ -3,18 +3,16 @@ A Unity texture helper. Easy to compress your texture and replace references for
 
 ## Usage
 
-1. Clone it
+1. Import
 
-2. Import it
+2. Select Textures
 
-3. Select Textures and click TextureCompressor
-
-4. Wait for it 
+3. Select TextureCompressor/TOPNG
 
 5. Done!
 
 ## Comparison
 
-### Before folder size (~75mb of 12 imgs)
+- Before folder size (~75mb)
 
-### After folder size (~1.5mb of 12 imgs)
+- After folder size (~1.5mb)
