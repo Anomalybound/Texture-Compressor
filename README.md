@@ -9,10 +9,4 @@ A Unity texture helper. Easy to compress your texture and replace references for
 
 3. Select TextureCompressor/TOPNG
 
-5. Done!
-
-## Comparison
-
-- Before folder size (~75mb)
-
-- After folder size (~1.5mb)
+5. Done！
