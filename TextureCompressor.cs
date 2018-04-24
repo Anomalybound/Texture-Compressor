@@ -9,10 +9,10 @@ using Debug = UnityEngine.Debug;
 
 public static class TextureCompressor
 {
-    private const string Version = "1.0.1";
+    private const string Version = "1.1.1";
 
-    private const int JPGQualityLevel = 75;
-    
+    private const int JPGQualityLevel = 100;
+
     private static readonly Dictionary<Texture2D, List<Material>> Sources = new Dictionary<Texture2D, List<Material>>();
 
     private static readonly string[] Filters =
@@ -24,6 +24,8 @@ public static class TextureCompressor
     [MenuItem("Assets/TextureCompressor/To JPG", true)]
     [MenuItem("Assets/TextureCompressor/To PNG (Delete Old)", true)]
     [MenuItem("Assets/TextureCompressor/To JPG (Delete Old)", true)]
+    [MenuItem("Assets/TextureCompressor/Auto Encode Texture", true)]
+    [MenuItem("Assets/TextureCompressor/Auto Encode Texture(Delete Old)", true)]
     public static bool ValidateEncodeTetxure()
     {
         return Selection.activeObject != null &&
@@ -33,60 +35,59 @@ public static class TextureCompressor
     [MenuItem("Assets/TextureCompressor/To PNG")]
     public static void EncodeTetxureToPNGKeepOld()
     {
-        EncodeTexturesToPNG(false);
+        AutoEncodeTexture(false, tex => true);
     }
 
     [MenuItem("Assets/TextureCompressor/To JPG")]
     public static void EncodeTetxureToJPGKeepOld()
     {
-        EncodeTexturesToJPG(false);
+        AutoEncodeTexture(false, tex => false);
     }
 
     [MenuItem("Assets/TextureCompressor/To PNG (Delete Old)")]
     public static void EncodeTetxureToPNG()
     {
-        EncodeTexturesToPNG(true);
+        AutoEncodeTexture(true, tex => true);
     }
 
     [MenuItem("Assets/TextureCompressor/To JPG (Delete Old)")]
     public static void EncodeTetxureToJPG()
     {
-        EncodeTexturesToJPG(true);
+        AutoEncodeTexture(true, tex => false);
     }
 
-    private static void EncodeTexturesToPNG(bool deleteOld)
+    [MenuItem("Assets/TextureCompressor/Auto Encode Texture")]
+    public static void AutoEncodeTexture()
     {
-        try
+        AutoEncodeTexture(false, TextureHasAlpha);
+    }
+
+    [MenuItem("Assets/TextureCompressor/Auto Encode Texture(Delete Old)")]
+    public static void AutoEncodeTextureAndDeleteOld()
+    {
+        AutoEncodeTexture(true, TextureHasAlpha);
+    }
+
+    private static bool TextureHasAlpha(Texture2D tex2D)
+    {
+        var path = AssetDatabase.GetAssetPath(tex2D);
+        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (importer != null)
         {
-            CacheAllMaterialInProject();
-            var length = Selection.objects.Length;
-            var selecteds = Selection.objects.OrderBy(x => x.name).ToList();
-            for (var index = length - 1; index >= 0; index--)
+            var hasAlpha = importer.DoesSourceTextureHaveAlpha();
+            if (hasAlpha)
             {
-                var Obj = selecteds.ElementAt(index);
-                if (Obj == null || !(Obj is Texture2D)) continue;
-                var assetExtension = Path.GetExtension(AssetDatabase.GetAssetPath(Obj));
-
-                EditorUtility.DisplayProgressBar("Encoding Textures",
-                    string.Format("Encoding : {0} ({1}/{2})", Obj.name, length - index, length),
-                    (length - index) / (float) length);
-
-                EncodeSingle(Obj as Texture2D, deleteOld);
+                Debug.Log(tex2D + " - has alpha channel");
             }
 
-            EditorUtility.ClearProgressBar();
-            Sources.Clear();
+            return hasAlpha;
         }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-            EditorUtility.ClearProgressBar();
-            throw;
-        }
+
+        Debug.LogError("Texture is not exists :" + tex2D);
+        return true;
     }
 
-
-    private static void EncodeTexturesToJPG(bool deleteOld)
+    private static void AutoEncodeTexture(bool deleteOld, Predicate<Texture2D> isPNG)
     {
         try
         {
@@ -103,7 +104,8 @@ public static class TextureCompressor
                     string.Format("Encoding : {0} ({1}/{2})", Obj.name, length - index, length),
                     (length - index) / (float) length);
 
-                EncodeSingle(Obj as Texture2D, deleteOld, true);
+                var tex2D = Obj as Texture2D;
+                EncodeSingle(Obj as Texture2D, deleteOld, isPNG(tex2D));
             }
 
             EditorUtility.ClearProgressBar();
@@ -156,7 +158,7 @@ public static class TextureCompressor
         return allTexture;
     }
 
-    private static void ChangeDependcies(Texture2D original, Texture2D newTexture, Material material)
+    private static void ReplaceDependcies(Texture2D original, Texture2D newTexture, Material material)
     {
         var shader = material.shader;
         for (var i = 0; i < ShaderUtil.GetPropertyCount(shader); i++)
@@ -170,7 +172,7 @@ public static class TextureCompressor
         }
     }
 
-    public static void EncodeSingle(Texture2D texture, bool deleteOld, bool isJPG = false)
+    public static void EncodeSingle(Texture2D texture, bool deleteOld, bool isPNG)
     {
         Texture2D origTexture = texture;
         var assetPath = AssetDatabase.GetAssetPath(origTexture);
@@ -208,18 +210,12 @@ public static class TextureCompressor
         }
 
         byte[] buff = { };
-        if (!isJPG)
-        {
-            buff = newTxt.EncodeToPNG();
-        }
-        else
-        {
-            buff = newTxt.EncodeToJPG(JPGQualityLevel);
-        }
 
-        var ext = isJPG ? ".jpg" : ".png";
-        string filePath = Path.GetDirectoryName(assetPath) + "/" + origTexture.name +
-                          (deleteOld ? ext : "_new" + ext);
+        buff = isPNG ? newTxt.EncodeToPNG() : newTxt.EncodeToJPG(JPGQualityLevel);
+
+        var ext = isPNG ? ".png" : ".jpg";
+        var filePath = Path.GetDirectoryName(assetPath) + "/" + origTexture.name +
+                       (deleteOld ? ext : "_new" + ext);
         File.WriteAllBytes(filePath, buff);
 
         if (needRevert)
@@ -259,7 +255,7 @@ public static class TextureCompressor
             Debug.LogFormat("We found {0} materials realted to {1}.", Sources[origTexture].Count, origTexture);
             foreach (var material in Sources[origTexture])
             {
-                ChangeDependcies(origTexture, newTexture as Texture2D, material);
+                ReplaceDependcies(origTexture, newTexture as Texture2D, material);
             }
 
             Sources.Remove(origTexture);
