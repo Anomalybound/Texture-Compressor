@@ -9,7 +9,9 @@ using Debug = UnityEngine.Debug;
 
 public static class TextureCompressor
 {
-    private const string Version = "1.0.0";
+    private const string Version = "1.0.1";
+
+    private const int JPGQualityLevel = 75;
     
     private static readonly Dictionary<Texture2D, List<Material>> Sources = new Dictionary<Texture2D, List<Material>>();
 
@@ -212,7 +214,7 @@ public static class TextureCompressor
         }
         else
         {
-            buff = newTxt.EncodeToJPG();
+            buff = newTxt.EncodeToJPG(JPGQualityLevel);
         }
 
         var ext = isJPG ? ".jpg" : ".png";
