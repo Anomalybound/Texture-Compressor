@@ -7,6 +7,8 @@ A Unity texture helper. Easy to compress your texture and replace references for
 
 2. Select Textures
 
-3. Select TextureCompressor/TOPNG
+3. Right click on textures and select context menu TextureCompressor/ToPNG(JPG is alpha channel not exists)
+
+4. Wait a moment
 
 5. Done！
