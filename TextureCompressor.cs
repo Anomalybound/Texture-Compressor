@@ -9,16 +9,16 @@ using Debug = UnityEngine.Debug;
 
 public static class TextureCompressor
 {
-    private const string Version = "1.1.1";
+    private const string Version = "1.1.2";
 
     private const int JPGQualityLevel = 100;
 
     private static readonly Dictionary<Texture2D, List<Material>> Sources = new Dictionary<Texture2D, List<Material>>();
 
-    private static readonly string[] Filters =
-    {
-        ".jpg", ".jpeg"
-    };
+//    private static readonly string[] Filters =
+//    {
+//        ".jpg", ".jpeg"
+//    };
 
     [MenuItem("Assets/TextureCompressor/To PNG", true)]
     [MenuItem("Assets/TextureCompressor/To JPG", true)]
@@ -75,10 +75,7 @@ public static class TextureCompressor
         if (importer != null)
         {
             var hasAlpha = importer.DoesSourceTextureHaveAlpha();
-            if (hasAlpha)
-            {
-                Debug.Log(tex2D + " - has alpha channel");
-            }
+            if (hasAlpha) { Debug.Log(tex2D + " - has alpha channel"); }
 
             return hasAlpha;
         }
@@ -98,7 +95,6 @@ public static class TextureCompressor
             {
                 var Obj = selecteds.ElementAt(index);
                 if (Obj == null || !(Obj is Texture2D)) continue;
-                var assetExtension = Path.GetExtension(AssetDatabase.GetAssetPath(Obj));
 
                 EditorUtility.DisplayProgressBar("Encoding Textures",
                     string.Format("Encoding : {0} ({1}/{2})", Obj.name, length - index, length),
@@ -129,14 +125,8 @@ public static class TextureCompressor
             var textures = FindAllTexture2Ds(material);
             foreach (var texture in textures)
             {
-                if (Sources.ContainsKey(texture))
-                {
-                    Sources[texture].Add(material);
-                }
-                else
-                {
-                    Sources.Add(texture, new List<Material> {material});
-                }
+                if (Sources.ContainsKey(texture)) { Sources[texture].Add(material); }
+                else { Sources.Add(texture, new List<Material> {material}); }
             }
         }
     }
@@ -149,10 +139,7 @@ public static class TextureCompressor
         {
             if (ShaderUtil.GetPropertyType(shader, i) != ShaderUtil.ShaderPropertyType.TexEnv) continue;
             var texture = material.GetTexture(ShaderUtil.GetPropertyName(shader, i)) as Texture2D;
-            if (texture != null)
-            {
-                allTexture.Add(texture);
-            }
+            if (texture != null) { allTexture.Add(texture); }
         }
 
         return allTexture;
@@ -165,10 +152,7 @@ public static class TextureCompressor
         {
             if (ShaderUtil.GetPropertyType(shader, i) != ShaderUtil.ShaderPropertyType.TexEnv) continue;
             var texture = material.GetTexture(ShaderUtil.GetPropertyName(shader, i)) as Texture2D;
-            if (texture == original)
-            {
-                material.SetTexture(ShaderUtil.GetPropertyName(shader, i), newTexture);
-            }
+            if (texture == original) { material.SetTexture(ShaderUtil.GetPropertyName(shader, i), newTexture); }
         }
     }
 
@@ -197,21 +181,15 @@ public static class TextureCompressor
         }
 
         var pixels = origTexture.GetPixels();
+        var targetFormat = importer.DoesSourceTextureHaveAlpha() ? TextureFormat.ARGB32 : TextureFormat.RGB24;
+
         var newTxt = new Texture2D(origTexture.width, origTexture.height,
-            importer.DoesSourceTextureHaveAlpha() ? TextureFormat.ARGB32 : TextureFormat.RGB24, isBipmap, isLinear);
+            targetFormat, isBipmap, isLinear);
 
-        if (importer.textureType == TextureImporterType.NormalMap)
-        {
-            DTXnmColors(newTxt, pixels);
-        }
-        else
-        {
-            newTxt.SetPixels(pixels);
-        }
+        if (importer.textureType == TextureImporterType.NormalMap) { DTXnmColors(newTxt, pixels); }
+        else { newTxt.SetPixels(pixels); }
 
-        byte[] buff = { };
-
-        buff = isPNG ? newTxt.EncodeToPNG() : newTxt.EncodeToJPG(JPGQualityLevel);
+        var buff = isPNG ? newTxt.EncodeToPNG() : newTxt.EncodeToJPG(JPGQualityLevel);
 
         var ext = isPNG ? ".png" : ".jpg";
         var filePath = Path.GetDirectoryName(assetPath) + "/" + origTexture.name +
@@ -240,10 +218,7 @@ public static class TextureCompressor
         var oriCol = EditorGUIUtility.isProSkin ? "#00b300" : "#b300b3";
         var toCol = EditorGUIUtility.isProSkin ? "#fc0" : "#03f";
 
-        if (newTexture == null)
-        {
-            Debug.Log("Waiting for new texture - " + Path.GetFileName(filePath));
-        }
+        if (newTexture == null) { Debug.Log("Waiting for new texture - " + Path.GetFileName(filePath)); }
 
         Debug.Log(string.Format("Encode <color={2}>{0}</color> to: <color={3}>{1}</color>",
                 Path.GetFileName(assetPath), Path.GetFileName(filePath), oriCol, toCol),
@@ -263,15 +238,9 @@ public static class TextureCompressor
         }
 
         Selection.activeObject = newTexture;
-        if (!deleteOld)
-        {
-            return;
-        }
+        if (!deleteOld) { return; }
 
-        if (filePath == assetPath)
-        {
-            return;
-        }
+        if (filePath == assetPath) { return; }
 
         Debug.Log("Deleting @" + assetPath);
         AssetDatabase.DeleteAsset(assetPath);
@@ -283,8 +252,7 @@ public static class TextureCompressor
 #if UNITY_IPHONE || UNITY_ANDROID
         target.SetPixels(colors);
         return;
-#endif
-
+#else
         for (int i = 0; i < colors.Length; i++)
         {
             Color c = colors[i];
@@ -297,6 +265,7 @@ public static class TextureCompressor
 
         target.SetPixels(colors); //apply pixels to the texture
         target.Apply();
+#endif
     }
 
     private static Texture2D NormalMap(Texture2D source)
